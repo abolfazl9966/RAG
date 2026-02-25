@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Django
+*.log
+local_settings.py
+
+media/
+
+
+
+# Virtual Environment
+venv/
+env/
+.venv/
+
+# Docker
+.docker_ids
+
+# IDE specific files
+.idea/
+.vscode/
