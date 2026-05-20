@@ -22,3 +22,5 @@ env/
 # IDE specific files
 .idea/
 .vscode/
+db.sqlite3
+.gitignore

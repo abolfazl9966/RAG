@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RAG QA</title>
+    <style>
+        body {
+            font-family: Tahoma, sans-serif;
+            background: #f5f7fb;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 40px auto;
+            background: #fff;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+        }
+
+        h1 {
+            margin-top: 0;
+            color: #222;
+            font-size: 28px;
+        }
+
+        p.desc {
+            color: #666;
+            margin-bottom: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 120px;
+            padding: 14px;
+            border: 1px solid #d8deea;
+            border-radius: 10px;
+            resize: vertical;
+            font-size: 15px;
+            box-sizing: border-box;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 12px 18px;
+            font-size: 15px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        button.secondary {
+            background: #64748b;
+        }
+
+        button.secondary:hover {
+            background: #475569;
+        }
+
+        .result-box {
+            margin-top: 24px;
+            padding: 18px;
+            border-radius: 12px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+        }
+
+        .result-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #111827;
+        }
+
+        .answer {
+            white-space: pre-wrap;
+            line-height: 1.9;
+            color: #222;
+        }
+
+        .context {
+            white-space: pre-wrap;
+            line-height: 1.8;
+            color: #444;
+            background: #fff;
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px dashed #cbd5e1;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .status {
+            margin-top: 16px;
+            color: #0f172a;
+            font-size: 14px;
+        }
+
+        .error {
+            color: #b91c1c;
+            margin-top: 16px;
+            font-size: 14px;
+        }
+
+        .loading {
+            color: #2563eb;
+            font-size: 14px;
+            margin-top: 16px;
+        }
+
+        .toggle-context {
+            margin-top: 12px;
+            background: #0f766e;
+        }
+
+        .toggle-context:hover {
+            background: #115e59;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>پرسش از سند</h1>
+        <p class="desc">
+            سوالت را بنویس تا سیستم از متن‌های ذخیره‌شده جواب بدهد.
+        </p>
+
+        <div class="form-group">
+            <label for="question">سوال</label>
+            <textarea id="question" placeholder="مثلاً: شرایط استفاده از سرویس چیست؟"></textarea>
+        </div>
+
+        <div class="actions">
+            <button id="askBtn">ارسال سوال</button>
+            <button id="clearBtn" class="secondary">پاک کردن</button>
+        </div>
+
+        <div id="loading" class="loading" style="display:none;">در حال پردازش...</div>
+        <div id="error" class="error"></div>
+
+        <div id="resultBox" class="result-box" style="display:none;">
+            <div class="result-title">پاسخ</div>
+            <div id="answer" class="answer"></div>
+
+            <button id="toggleContextBtn" class="toggle-context">نمایش context</button>
+            <div id="context" class="context"></div>
+        </div>
+    </div>
+
+    <script>
+        const askBtn = document.getElementById("askBtn");
+        const clearBtn = document.getElementById("clearBtn");
+        const questionInput = document.getElementById("question");
+        const loading = document.getElementById("loading");
+        const errorBox = document.getElementById("error");
+        const resultBox = document.getElementById("resultBox");
+        const answerBox = document.getElementById("answer");
+        const contextBox = document.getElementById("context");
+        const toggleContextBtn = document.getElementById("toggleContextBtn");
+
+        let contextVisible = false;
+
+        askBtn.addEventListener("click", async function () {
+            const question = questionInput.value.trim();
+
+            errorBox.textContent = "";
+            resultBox.style.display = "none";
+            answerBox.textContent = "";
+            contextBox.textContent = "";
+            contextBox.style.display = "none";
+            toggleContextBtn.textContent = "نمایش context";
+            contextVisible = false;
+
+            if (!question) {
+                errorBox.textContent = "لطفاً سوال را وارد کنید.";
+                return;
+            }
+
+            loading.style.display = "block";
+
+            try {
+                const response = await fetch("/ask/", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ question })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || "خطا در دریافت پاسخ");
+                }
+
+                answerBox.textContent = data.answer || "پاسخی دریافت نشد.";
+                contextBox.textContent = data.context_used || "context یافت نشد.";
+                resultBox.style.display = "block";
+
+            } catch (err) {
+                errorBox.textContent = err.message || "خطای نامشخص";
+            } finally {
+                loading.style.display = "none";
+            }
+        });
+
+        clearBtn.addEventListener("click", function () {
+            questionInput.value = "";
+            errorBox.textContent = "";
+            resultBox.style.display = "none";
+            answerBox.textContent = "";
+            contextBox.textContent = "";
+            contextBox.style.display = "none";
+            toggleContextBtn.textContent = "نمایش context";
+            contextVisible = false;
+        });
+
+        toggleContextBtn.addEventListener("click", function () {
+            contextVisible = !contextVisible;
+            contextBox.style.display = contextVisible ? "block" : "none";
+            toggleContextBtn.textContent = contextVisible ? "مخفی کردن context" : "نمایش context";
+        });
+
+        questionInput.addEventListener("keydown", function (e) {
+            if (e.ctrlKey && e.key === "Enter") {
+                askBtn.click();
+            }
+        });
+    </script>
+</body>
+</html>
