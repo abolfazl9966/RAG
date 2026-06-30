@@ -249,7 +249,7 @@ def generate_llm_response(question: str, context: str) -> str:
             api_key=api_key,
             base_url="https://api.gapgpt.app/v1",
             model="gpt-5.2",
-            temperature=0,
+            temperature=0.2,
             max_tokens=2000,
             timeout=30,
         )

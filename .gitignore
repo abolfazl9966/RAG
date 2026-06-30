@@ -15,6 +15,7 @@ media/
 venv/
 env/
 .venv/
+.env
 
 # Docker
 .docker_ids
